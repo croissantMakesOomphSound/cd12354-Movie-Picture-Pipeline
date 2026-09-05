@@ -7,8 +7,8 @@ RUN useradd -u 1000 -m app
 
 RUN apt-get update && \
   apt-get install -y \
-  libpcre3 \
-  libpcre3-dev \
+  libpcre2-8-0 \
+  libpcre2-dev \
   build-essential \
   gcc \
   libssl-dev \
