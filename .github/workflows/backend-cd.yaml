@@ -1,17 +1,17 @@
-name: Frontend CD
+name: Backend Continuous Deployment
 
 on:
   push:
     branches:
       - main
     paths:
-      - "starter/frontend/**"
-      - ".github/workflows/frontend-cd.yml"
+      - "starter/backend/**"
+      - ".github/workflows/backend-cd.yml"
   workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: 824201015341.dkr.ecr.us-east-1.amazonaws.com/frontend
+  ECR_REPOSITORY: 824201015341.dkr.ecr.us-east-1.amazonaws.com/backend
   EKS_CLUSTER: cluster
 
 jobs:
@@ -19,49 +19,49 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: starter/frontend
+        working-directory: starter/backend
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 18
-          cache: npm
-          cache-dependency-path: starter/frontend/package-lock.json
+          python-version: "3.10"
+
+      - name: Install Pipenv
+        run: python -m pip install pipenv
 
       - name: Install dependencies
-        run: npm ci
+        run: python -m pipenv install --dev
 
       - name: Lint
-        run: npm run lint
+        run: python -m pipenv run lint
 
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: starter/frontend
+        working-directory: starter/backend
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 18
-          cache: npm
-          cache-dependency-path: starter/frontend/package-lock.json
+          python-version: "3.10"
+
+      - name: Install Pipenv
+        run: python -m pip install pipenv
 
       - name: Install dependencies
-        run: npm ci
+        run: python -m pipenv install --dev
 
       - name: Test
-        run: npm test -- --watchAll=false
-        env:
-          CI: true
+        run: python -m pipenv run test
 
   build:
     runs-on: ubuntu-latest
@@ -84,12 +84,9 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push Docker image
-        working-directory: starter/frontend
+        working-directory: starter/backend
         run: |
-          docker build \
-            --build-arg REACT_APP_MOVIE_API_URL=http://localhost:5000 \
-            -t $ECR_REPOSITORY:${{ github.sha }} \
-            .
+          docker build -t $ECR_REPOSITORY:${{ github.sha }} .
           docker push $ECR_REPOSITORY:${{ github.sha }}
 
   deploy:
@@ -116,8 +113,8 @@ jobs:
       - name: Install Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Deploy frontend
-        working-directory: starter/frontend/k8s
+      - name: Deploy backend
+        working-directory: starter/backend/k8s
         run: |
-          kustomize edit set image frontend=$ECR_REPOSITORY:${{ github.sha }}
+          kustomize edit set image backend=$ECR_REPOSITORY:${{ github.sha }}
           kustomize build | kubectl apply -f -
